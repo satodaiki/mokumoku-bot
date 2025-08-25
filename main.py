@@ -1,33 +1,40 @@
 import discord
 import os
-from discord.ext import commands
+from discord import app_commands
 from dotenv import load_dotenv
 
 if os.getenv("RAILWAY_ENVIRONMENT") is None:
     load_dotenv()
 
+if os.getenv("DISABLE_BOT") == "true":
+    print("Bot is disabled in this environment.")
+    exit()
+
 TOKEN = os.environ.get("DISCORD_TOKEN")
 
 intents = discord.Intents.default()
-intents.message_content = True
+client = discord.Client(intents=intents)
+tree = app_commands.CommandTree(client)
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+@client.event
+async def on_ready():
+    print(f"Logged in as {client.user}")
+    await tree.sync()  # コマンドをDiscordに同期
 
-# botコマンド
-@bot.command()
-async def start(ctx):
-    await ctx.send("もくもくSTART")
+@tree.command(name="start", description="もくもく学習を開始します")
+async def start_command(interaction: discord.Interaction):
+    await interaction.response.send_message("もくもく開始")
 
-@bot.command()
-async def rest(ctx):
-    await ctx.send("休憩")
+@tree.command(name="rest", description="もくもく学習を休憩します")
+async def start_command(interaction: discord.Interaction):
+    await interaction.response.send_message("もくもく休憩")
 
-@bot.command()
-async def restart(ctx):
-    await ctx.send("再開")
+@tree.command(name="restart", description="もくもく学習を再開します")
+async def start_command(interaction: discord.Interaction):
+    await interaction.response.send_message("もくもく再開")
 
-@bot.command()
-async def end(ctx):
-    await ctx.send("もくもくEND")
+@tree.command(name="end", description="もくもく学習を終了します")
+async def start_command(interaction: discord.Interaction):
+    await interaction.response.send_message("もくもく終了")
 
-bot.run(TOKEN)
+client.run(TOKEN)
