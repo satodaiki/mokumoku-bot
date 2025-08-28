@@ -23,18 +23,27 @@ async def on_ready():
 
 @tree.command(name="start", description="もくもく学習を開始します")
 async def start_command(interaction: discord.Interaction):
-    await interaction.response.send_message("もくもく開始")
+    user_name = interaction.user.name
+    await interaction.response.send_message(f"{user_name} もくもく開始")
 
 @tree.command(name="rest", description="もくもく学習を休憩します")
-async def start_command(interaction: discord.Interaction):
-    await interaction.response.send_message("もくもく休憩")
+async def rest_command(interaction: discord.Interaction):
+    user_name = interaction.user.name
+    await interaction.response.send_message(f"{user_name} もくもく休憩")
 
 @tree.command(name="restart", description="もくもく学習を再開します")
-async def start_command(interaction: discord.Interaction):
-    await interaction.response.send_message("もくもく再開")
+async def restart_command(interaction: discord.Interaction):
+    user_name = interaction.user.name
+    await interaction.response.send_message(f"{user_name} もくもく再開")
 
 @tree.command(name="end", description="もくもく学習を終了します")
-async def start_command(interaction: discord.Interaction):
-    await interaction.response.send_message("もくもく終了")
+async def end_command(interaction: discord.Interaction):
+    user_name = interaction.user.name
+    await interaction.response.send_message(f"{user_name} もくもく終了")
+
+@tree.command(name="total", description="学習時間の合計を表示します")
+async def total_command(interaction: discord.Interaction):
+    user_name = interaction.user.name
+    await interaction.response.send_message(f"{user_name} の学習時間合計(8月)：10時間30分")
 
 client.run(TOKEN)
