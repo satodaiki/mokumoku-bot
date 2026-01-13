@@ -15,7 +15,7 @@ jobs:
       - name: Deploy to Lightsail
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: 18.177.143.19
+          host: 43.206.242.30
           username: ubuntu
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           script: |
