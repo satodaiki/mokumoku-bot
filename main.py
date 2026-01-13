@@ -13,19 +13,7 @@ intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-DATA_FILE = "record.json"
-
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        return {}
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-study_data = load_data()
+start_times = {}
 
 @client.event
 async def on_ready():
@@ -37,15 +25,15 @@ async def start_command(interaction: discord.Interaction):
     user_id = str(interaction.user.id)
     user_name = str(interaction.user.name)
 
-    if user_id not in study_data or study_data[user_id].get("start") is not None:
+    if user_id not in start_times:
+        start_times[user_id] = None
+
+    if start_times[user_id] is not None:
         await interaction.response.send_message("既に /start を実行済みだよ")
+        return
 
     # 開始時刻を保存
-    study_data[user_id] = {
-        "start": datetime.now().isoformat(),
-        "name": user_name
-    }
-    save_data(study_data)
+    start_times[user_id] = datetime.now()
 
     await interaction.response.send_message(f"{user_name} もくもく開始")
 
@@ -55,19 +43,18 @@ async def end_command(interaction: discord.Interaction, task: str):
     user_id = str(interaction.user.id)
     user_name = str(interaction.user.name)
 
-    if user_id not in study_data or study_data[user_id].get("start") is None:
+    if user_id not in start_times or start_times[user_id] is None:
         await interaction.response.send_message("先に /start を実行してね")
         return
 
-    start_time = datetime.fromisoformat(study_data[user_id]["start"])
+    start_time = start_times[user_id]
     end_time = datetime.now()
 
     duration = end_time - start_time
     minutes = int(duration.total_seconds() // 60)
 
     # 終了したので開始時刻を消す
-    study_data[user_id]["start"] = None
-    save_data(study_data)
+    start_times[user_id] = None
 
     hours = minutes // 60
     mins = minutes % 60
