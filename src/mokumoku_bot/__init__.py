@@ -5,6 +5,7 @@ from discord import app_commands
 from dotenv import load_dotenv
 from datetime import datetime
 
+
 load_dotenv()
 
 TOKEN = os.environ.get("DISCORD_TOKEN")
