@@ -1,15 +1,13 @@
 import os
-import json
-
-from aiohttp import web
-import discord
-from dotenv import load_dotenv
 from datetime import datetime
 
+import discord
+from aiohttp import web
+from dotenv import load_dotenv
 
 load_dotenv()
 
-TOKEN = os.environ.get("DISCORD_TOKEN")
+TOKEN = os.environ["DISCORD_TOKEN"]
 
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
@@ -17,9 +15,11 @@ tree = discord.app_commands.CommandTree(client)
 
 start_times = {}
 
+
 # --- ヘルスチェック用のWebサーバー設定 ---
 async def health_check(request):
     return web.Response(text="OK", status=200)
+
 
 async def start_server():
     app = web.Application()
@@ -30,12 +30,14 @@ async def start_server():
     await site.start()
     print("Health check server started on port 8000")
 
+
 @client.event
 async def on_ready():
     print(f"Logged in as {client.user}")
     # ヘルスチェックサーバーの開始
     await start_server()
     await tree.sync()
+
 
 @tree.command(name="start", description="もくもく学習を開始します")
 async def start_command(interaction: discord.Interaction):
@@ -54,8 +56,9 @@ async def start_command(interaction: discord.Interaction):
 
     await interaction.response.send_message(f"{user_name} もくもく開始")
 
+
 @tree.command(name="end", description="もくもく学習を終了します")
-@app_commands.describe(task="今日やったことを書いてください")
+@discord.app_commands.describe(task="今日やったことを書いてください")
 async def end_command(interaction: discord.Interaction, task: str):
     user_id = str(interaction.user.id)
     user_name = str(interaction.user.name)
@@ -79,5 +82,6 @@ async def end_command(interaction: discord.Interaction, task: str):
     await interaction.response.send_message(
         f"{user_name} もくもく終了\n今日の学習時間: {hours}時間{mins}分\n今日やったこと: {task}"
     )
+
 
 client.run(TOKEN)
