@@ -1,36 +1,16 @@
 ﻿# mokumoku-bot
 
-#1. プロジェクト概要
+## 1. プロジェクト概要
 
-このリポジトリは Discord Bot（Python）を Lightsail 上で常駐運用し、
-GitHub Actions によって自動デプロイされる構成になっています。
+もくもく会の開始・終了をアナウンスする際のDiscord Bot
 
 主な技術構成：
 
-- AWS Lightsail（Ubuntu）
-- Python 3.10.12
-- systemd による常駐管理
-- GitHub Actions による CI/CD
-- SSH 公開鍵認証
-- Deploy Key（GitHub → Lightsail）
+- Python 3.13.11
+- uv (パッケージ管理)
+- docker
+- koyeb
 
-#2. Lightsail サーバー構成
+## 3. CI/CD
 
-● Bot の配置場所
-/home/ubuntu/mokumoku-bot
-
-● systemd のサービス名
-mokumokubot.service
-
-● systemd ファイルの場所
-/etc/systemd/system/mokumokubot.service
-
-#3. GitHub Actions（CI/CD）
-
-● 動作概要
-
-- GitHub の main ブランチに push
-- GitHub Actions が Lightsail に SSH
-- git pull
-- systemctl restart mokumokubot
-- Bot が自動更新される
+mainブランチにプッシュされると、koyeb側でDockerfileで作成されたイメージがデプロイされます。
