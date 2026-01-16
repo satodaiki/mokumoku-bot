@@ -1,7 +1,8 @@
-import discord
 import os
 import json
-from discord import app_commands
+
+from aiohttp import web
+import discord
 from dotenv import load_dotenv
 from datetime import datetime
 
@@ -12,13 +13,28 @@ TOKEN = os.environ.get("DISCORD_TOKEN")
 
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(client)
+tree = discord.app_commands.CommandTree(client)
 
 start_times = {}
+
+# --- ヘルスチェック用のWebサーバー設定 ---
+async def health_check(request):
+    return web.Response(text="OK", status=200)
+
+async def start_server():
+    app = web.Application()
+    app.router.add_get("/healthz", health_check)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", 8000)
+    await site.start()
+    print("Health check server started on port 8000")
 
 @client.event
 async def on_ready():
     print(f"Logged in as {client.user}")
+    # ヘルスチェックサーバーの開始
+    await start_server()
     await tree.sync()
 
 @tree.command(name="start", description="もくもく学習を開始します")
