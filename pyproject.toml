@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "satodaiki", email = "banana5388@gmail.com" }
 ]
-requires-python = ">=3.13.11"
+requires-python = ">=3.13"
 dependencies = [
     "aiohttp>=3.13.3",
     "discord-py>=2.6.4",
