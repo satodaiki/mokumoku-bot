@@ -66,10 +66,10 @@ def init_start_times(messages: List[discord.Message]):
     DB導入次第、不要になる予定
     """
     for msg in messages:
-        if msg.interaction and msg.interaction.name == START_CMD:
-            start_times[str(msg.interaction.user.id)] = msg.created_at
-        elif msg.interaction and msg.interaction.name == END_CMD:
-            start_times[str(msg.interaction.user.id)] = None
+        if msg.interaction_metadata and "開始" in msg.content:
+            start_times[str(msg.interaction_metadata.user.id)] = msg.created_at
+        elif msg.interaction_metadata and "終了" in msg.content:
+            start_times[str(msg.interaction_metadata.user.id)] = None
 
 
 @client.event
@@ -83,7 +83,7 @@ async def on_ready():
     init_start_times(messages)
 
 
-@tree.command(name="start", description="もくもく学習を開始します")
+@tree.command(name=START_CMD, description="もくもく学習を開始します")
 async def start_command(interaction: discord.Interaction):
     user_id = str(interaction.user.id)
     user_name = str(interaction.user.name)
@@ -101,7 +101,7 @@ async def start_command(interaction: discord.Interaction):
     await interaction.response.send_message(f"{user_name} もくもく開始")
 
 
-@tree.command(name="end", description="もくもく学習を終了します")
+@tree.command(name=END_CMD, description="もくもく学習を終了します")
 @discord.app_commands.describe(task="今日やったことを書いてください")
 async def end_command(interaction: discord.Interaction, task: str):
     user_id = str(interaction.user.id)
