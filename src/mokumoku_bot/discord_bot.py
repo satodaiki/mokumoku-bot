@@ -35,9 +35,7 @@ async def get_bot_messages() -> List[discord.Message]:
         return []
 
     async for message in channel.history(limit=None):
-        # ボットのメッセージのみ抽出
-        if message.author.bot and client.user and message.author.id == client.user.id:
-            messages.append(message)
+        messages.append(message)
 
     # そのままだと最新のメッセージがリストの一番最初に入っているため
     # 最新のメッセージをリストの一番最後にする
