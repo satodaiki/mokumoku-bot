@@ -1,6 +1,7 @@
 import asyncio
+import datetime as dt
 import os
-from typing import List
+from typing import List, Literal
 
 import discord
 import pandas as pd
@@ -69,7 +70,9 @@ def convert_bot_messages_to_time_intervals(messages: List[discord.Message]):
     return results
 
 
-def aggregate_time_intervals(data):
+def aggregate_time_intervals(
+    data: List[tuple[Literal["start", "end"], str, dt.datetime]],
+):
     """datetime型のデータから稼働時間を集計"""
     start_times = {}
     intervals = []
