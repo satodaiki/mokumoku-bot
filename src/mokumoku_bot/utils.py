@@ -1,5 +1,6 @@
 import discord
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from mokumoku_bot.discord_bot import END_CMD, START_CMD
@@ -45,15 +46,23 @@ async def init_history(sess: Session, token: str, channel_id: int):
                     user_name = msg.author.name
 
                 histories += [
-                    History(
-                        user_id=user_id,
-                        user_name=user_name,
-                        cmd=cmd,
-                        created_at=msg.created_at,
-                    )
+                    {
+                        "user_id": user_id,
+                        "user_name": user_name,
+                        "cmd": cmd,
+                        "created_at": msg.created_at,
+                    }
                 ]
 
-        sess.add_all(histories)
+        # insert 文の作成
+        stmt = insert(History).values(histories)
+
+        # 主キーが衝突した場合は「何もしない」
+        # index_elements にはモデルで primary_key=True にしたカラム名を指定
+        stmt = stmt.on_conflict_do_nothing(
+            index_elements=["user_id", "cmd", "created_at"]
+        )
+        sess.execute(stmt)
         sess.commit()
 
 

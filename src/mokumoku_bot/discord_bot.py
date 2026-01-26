@@ -40,7 +40,7 @@ def init_start_times():
 
     for result in results:
         if result.cmd == START_CMD:
-            start_times[result.user_id] = result.created_at
+            start_times[result.user_id] = result.created_at.astimezone(dt.timezone.utc)
         elif result.cmd == END_CMD:
             start_times[result.user_id] = None
 
