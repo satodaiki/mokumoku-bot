@@ -7,7 +7,12 @@ from sqlalchemy.orm import sessionmaker
 DATABASE_URL = os.environ["DATABASE_URL"]
 
 # The engine should be a singleton instance in your application
-engine = create_engine(DATABASE_URL, pool_size=10, max_overflow=20)
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,  # 接続を使用する直前に「生きてるか」確認する
+)
 
 # The sessionmaker/factory is also a singleton
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
