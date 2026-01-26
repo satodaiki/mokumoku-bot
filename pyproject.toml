@@ -8,10 +8,13 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "alembic>=1.18.1",
     "discord-py>=2.6.4",
     "pandas>=2.3.3",
     "plotly>=6.5.2",
+    "psycopg2-binary>=2.9.11",
     "python-dotenv>=1.2.1",
+    "sqlalchemy>=2.0.46",
     "streamlit>=1.53.0",
 ]
 

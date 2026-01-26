@@ -1,9 +1,13 @@
 import datetime as dt
 import os
-from typing import Dict, List
+from typing import Dict
 
 import discord
 from dotenv import load_dotenv
+from sqlalchemy import desc, select
+
+from mokumoku_bot.db.conn import get_db_session
+from mokumoku_bot.model.history import History
 
 load_dotenv()
 
@@ -17,43 +21,28 @@ client = discord.Client(intents=intents)
 tree = discord.app_commands.CommandTree(client)
 
 # インメモリデータ
-# Neonに移行次第、廃止予定
 start_times: Dict[str, dt.datetime | None] = {}
 
 
-async def get_bot_messages() -> List[discord.Message]:
-    """もくもくBotが送ったすべてのメッセージを取得"""
-    messages = []
-    channel = client.get_channel(CHANNEL_ID)
+def init_start_times():
+    """各ユーザーの状態を初期化"""
+    with get_db_session() as sess:
+        # 各ユーザーごとの最新のレコードを取得
+        results = (
+            sess.execute(
+                select(History)
+                .distinct(History.user_id)
+                .order_by(History.user_id, desc(History.created_at))
+            )
+            .scalars()
+            .all()
+        )
 
-    if channel is None:
-        print("チャンネルが存在しません")
-        return []
-
-    if not isinstance(channel, discord.TextChannel):
-        print("テキストチャンネル以外は受け付けません")
-        return []
-
-    async for message in channel.history(limit=None):
-        messages.append(message)
-
-    # そのままだと最新のメッセージがリストの一番最初に入っているため
-    # 最新のメッセージをリストの一番最後にする
-    messages.reverse()
-
-    return messages
-
-
-def init_start_times(messages: List[discord.Message]):
-    """各ユーザーの状態を初期化
-
-    DB導入次第、不要になる予定
-    """
-    for msg in messages:
-        if msg.interaction_metadata and "開始" in msg.content:
-            start_times[str(msg.interaction_metadata.user.id)] = msg.created_at
-        elif msg.interaction_metadata and "終了" in msg.content:
-            start_times[str(msg.interaction_metadata.user.id)] = None
+    for result in results:
+        if result.cmd == START_CMD:
+            start_times[result.user_id] = result.created_at
+        elif result.cmd == END_CMD:
+            start_times[result.user_id] = None
 
 
 @client.event
@@ -62,8 +51,7 @@ async def on_ready():
     await tree.sync()
 
     # ユーザーの状態を初期化
-    messages = await get_bot_messages()
-    init_start_times(messages)
+    init_start_times()
 
 
 @tree.command(name=START_CMD, description="もくもく学習を開始します")
@@ -80,6 +68,18 @@ async def start_command(interaction: discord.Interaction):
 
     # 開始時刻を保存
     start_times[user_id] = interaction.created_at
+
+    # DBにレコードを追加
+    with get_db_session() as sess:
+        sess.add(
+            History(
+                user_id=user_id,
+                user_name=user_name,
+                cmd=START_CMD,
+                created_at=interaction.created_at,
+            )
+        )
+        sess.commit()
 
     await interaction.response.send_message(f"{user_name} もくもく開始")
 
@@ -107,6 +107,18 @@ async def end_command(interaction: discord.Interaction, task: str):
 
     # 終了したので開始時刻を消す
     start_times[user_id] = None
+
+    # DBにレコードを追加
+    with get_db_session() as sess:
+        sess.add(
+            History(
+                user_id=user_id,
+                user_name=user_name,
+                cmd=END_CMD,
+                created_at=interaction.created_at,
+            )
+        )
+        sess.commit()
 
     hours = minutes // 60
     mins = minutes % 60

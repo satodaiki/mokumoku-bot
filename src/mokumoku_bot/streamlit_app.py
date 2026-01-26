@@ -1,15 +1,16 @@
 import asyncio
-import datetime as dt
 import os
-from typing import List, Literal
+from typing import List
 
-import discord
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 from dotenv import load_dotenv
 
+from mokumoku_bot.db.conn import get_db_session
 from mokumoku_bot.discord_bot import END_CMD, START_CMD
+from mokumoku_bot.model.history import History
+from mokumoku_bot.utils import get_all_histories, init_history
 
 load_dotenv()
 
@@ -17,86 +18,39 @@ TOKEN = os.environ["DISCORD_TOKEN"]
 CHANNEL_ID = int(os.environ["DISCORD_CHANNEL_ID"])
 
 
-async def fetch_messages_once():
-    """Streamlitから呼び出すための、ログイン〜取得〜ログアウトを完結させる関数"""
-    # ここでClientを毎回作ることで、現在のループに紐付ける
-    intents = discord.Intents.default()
-    temp_client = discord.Client(intents=intents)
-
-    async with temp_client:
-        # バックグラウンドでログイン処理
-        await temp_client.login(TOKEN)
-        # チャンネル取得
-        channel = await temp_client.fetch_channel(CHANNEL_ID)
-
-        messages = []
-        if isinstance(channel, discord.TextChannel):
-            async for message in channel.history(limit=None):
-                messages.append(message)
-
-        messages.reverse()
-        return messages
-
-
-def convert_bot_messages_to_time_intervals(messages: List[discord.Message]):
-    results = []
-    for msg in messages:
-        if "開始" in msg.content:
-            cmd = START_CMD
-        elif "終了" in msg.content:
-            cmd = END_CMD
-        else:
-            continue
-
-        user_name = ""
-
-        if msg.author.bot and msg.interaction_metadata is None:
-            print("Botのユーザー発信元が分かりませんでした")
-            continue
-        elif msg.author.bot and msg.interaction_metadata is not None:
-            # ボットの場合
-            user_name = msg.interaction_metadata.user.name
-        else:
-            # 手動の場合
-            user_name = msg.author.name
-
-        results.append(
-            (
-                cmd,
-                user_name,
-                msg.created_at,
-            )
-        )
-    return results
-
-
 def aggregate_time_intervals(
-    data: List[tuple[Literal["start", "end"], str, dt.datetime]],
+    data: List[History],
 ):
     """datetime型のデータから稼働時間を集計"""
-    start_times = {}
+    # start_times = {}
+    last_start_dict = {}
     intervals = []
 
-    for action, key, time in data:
-        if action == "start":
-            if key not in start_times:
-                start_times[key] = []
-            start_times[key].append(time)
+    for d in data:
+        action, key, time = d.cmd, d.user_name, d.created_at
+        if action == START_CMD:
+            last_start_dict[key] = time
 
-        elif action == "end":
-            if key in start_times and start_times[key]:
-                start_time = start_times[key].pop(0)
+        elif action == END_CMD:
+            if key in last_start_dict:
+                start_time = last_start_dict.pop(key)
                 duration = (time - start_time).total_seconds() / 3600  # 時間単位
 
-                intervals.append(
-                    {
-                        "key": key,
-                        "start": start_time,
-                        "end": time,
-                        "duration_hours": duration,
-                        "date": start_time.date(),
-                    }
-                )
+                # --- データの齟齬対策 ---
+                # 1回の作業が24時間を超える場合は、押し忘れとみなして除外（または警告）
+                if 0 < duration < 24:
+                    intervals.append(
+                        {
+                            "key": key,
+                            "start": start_time,
+                            "end": time,
+                            "duration_hours": duration,
+                            "date": start_time.date(),
+                        }
+                    )
+                else:
+                    # ここでログを出したり、異常値としてスキップ
+                    print(f"異常な継続時間を検知し除外: {key} ({duration:.1f} hours)")
 
     return intervals
 
@@ -106,22 +60,61 @@ st.set_page_config(page_title="稼働時間トラッカー", layout="wide")
 
 st.title("📊 稼働時間トラッカー")
 
+if st.button("更新 🔄"):
+    with get_db_session() as sess:
+        asyncio.run(init_history(sess, TOKEN, CHANNEL_ID))
+        st.cache_data.clear()  # キャッシュを削除
+        st.rerun()  # スクリプトを再実行（画面更新）
 
-messages = asyncio.run(fetch_messages_once())
-data = convert_bot_messages_to_time_intervals(messages)
+with get_db_session() as sess:
+    data = get_all_histories(sess)
 
 intervals = aggregate_time_intervals(data)
 df = pd.DataFrame(intervals)
 
-# 日毎の集計
-daily_stats = df.groupby("date")["duration_hours"].sum().reset_index()
-daily_stats.columns = ["日付", "稼働時間"]
+# データが存在する場合のみ表示
+if not df.empty:
+    # 日毎の集計
+    daily_stats = df.groupby("date")["duration_hours"].sum().reset_index()
+    daily_stats.columns = ["日付", "稼働時間"]
 
-# 棒グラフ
-fig_bar = px.bar(daily_stats, x="日付", y="稼働時間", title="日毎の稼働時間")
-fig_bar = px.bar(daily_stats, x="日付", y="稼働時間", title="日毎の稼働時間")
-st.plotly_chart(fig_bar, use_container_width=True)
+    # 棒グラフ
+    fig_bar = px.bar(daily_stats, x="日付", y="稼働時間", title="日毎の稼働時間")
+    st.plotly_chart(fig_bar, use_container_width=True)
 
-# タイムライン
-st.subheader("稼働タイムライン")
-st.dataframe(df)
+    # ユーザーごとの棒グラフ
+    user_list = sorted(df["key"].unique())
+    user_tabs = st.tabs([f"👤 {u}" for u in user_list])
+    for tab, user_name in zip(user_tabs, user_list):
+        with tab:
+            st.subheader(f"{user_name} さんの活動分析")
+
+            user_df = df.sort_values("start", ascending=False)[df["key"] == user_name]
+
+            # 指標を横並びで表示
+            col1, col2, col3 = st.columns(3)
+            total_h = user_df["duration_hours"].sum()
+            avg_h = user_df["duration_hours"].mean()
+            count = len(user_df)
+
+            col1.metric("総稼働時間", f"{total_h:.1f} 時間")
+            col2.metric("平均稼働時間", f"{avg_h:.1f} 時間")
+            col3.metric("もくもく回数", f"{count} 回")
+
+            st.write("### 日次推移")
+            user_daily = user_df.groupby("date")["duration_hours"].sum().reset_index()
+            fig_user = px.line(
+                user_daily,
+                x="date",
+                y="duration_hours",
+                markers=True,
+                title=f"{user_name} さんの稼働推移",
+                labels={"duration_hours": "時間(h)", "date": "日付"},
+            )
+            st.plotly_chart(fig_user, use_container_width=True)
+
+    # タイムライン
+    st.subheader("稼働タイムライン")
+    st.dataframe(df)
+else:
+    st.write("データが存在しません")
