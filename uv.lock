@@ -530,7 +530,7 @@ wheels = [
 
 [[package]]
 name = "mokumoku-bot"
-version = "0.1.0"
+version = "0.1.3"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
@@ -539,6 +539,7 @@ dependencies = [
     { name = "plotly" },
     { name = "psycopg2-binary" },
     { name = "python-dotenv" },
+    { name = "pytz" },
     { name = "sqlalchemy" },
     { name = "streamlit" },
 ]
@@ -551,6 +552,7 @@ requires-dist = [
     { name = "plotly", specifier = ">=6.5.2" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
+    { name = "pytz", specifier = ">=2025.2" },
     { name = "sqlalchemy", specifier = ">=2.0.46" },
     { name = "streamlit", specifier = ">=1.53.0" },
 ]

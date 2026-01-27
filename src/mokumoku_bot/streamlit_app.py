@@ -4,6 +4,7 @@ from typing import List
 
 import pandas as pd
 import plotly.express as px
+import pytz
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -22,12 +23,15 @@ def aggregate_time_intervals(
     data: List[History],
 ):
     """datetime型のデータから稼働時間を集計"""
-    # start_times = {}
     last_start_dict = {}
     intervals = []
 
     for d in data:
         action, key, time = d.cmd, d.user_name, d.created_at
+
+        # 時間をUTC -> JSTにノーマライズ
+        time = pytz.timezone("Asia/Tokyo").normalize(pytz.UTC.localize(time))
+
         if action == START_CMD:
             last_start_dict[key] = time
 
