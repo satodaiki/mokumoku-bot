@@ -50,6 +50,7 @@ def aggregate_time_intervals(
                             "end": time,
                             "duration_hours": duration,
                             "date": start_time.date(),
+                            "month": start_time.strftime("%Y-%m"),
                         }
                     )
                 else:
@@ -105,17 +106,45 @@ if not df.empty:
             col2.metric("平均稼働時間", f"{avg_h:.1f} 時間")
             col3.metric("もくもく回数", f"{count} 回")
 
-            st.write("### 日次推移")
-            user_daily = user_df.groupby("date")["duration_hours"].sum().reset_index()
-            fig_user = px.line(
-                user_daily,
-                x="date",
-                y="duration_hours",
-                markers=True,
-                title=f"{user_name} さんの稼働推移",
-                labels={"duration_hours": "時間(h)", "date": "日付"},
+            st.write("### 📈 月別・日別の稼働推移")
+
+            # 月別と日別を切り替えて表示できるようにラジオボタンを設置
+            view_mode = st.radio(
+                f"表示単位 ({user_name})",
+                ["日別", "月別"],
+                horizontal=True,
+                key=f"radio_{user_name}",
             )
-            st.plotly_chart(fig_user, use_container_width=True)
+
+            if view_mode == "日別":
+                user_daily = (
+                    user_df.groupby("date")["duration_hours"].sum().reset_index()
+                )
+                fig_daily = px.line(
+                    user_daily,
+                    x="date",
+                    y="duration_hours",
+                    markers=True,
+                    title=f"{user_name} さんの稼働推移",
+                    labels={"duration_hours": "時間(h)", "date": "日付"},
+                )
+                st.plotly_chart(fig_daily, use_container_width=True)
+            else:
+                user_monthly = (
+                    user_df.groupby("month")["duration_hours"].sum().reset_index()
+                )
+                fig_monthly = px.bar(
+                    user_monthly,
+                    x="month",
+                    y="duration_hours",
+                    text_auto=True,  # 棒グラフの上に数値を表示
+                    title=f"{user_name} さんの月別稼働時間",
+                    labels={"duration_hours": "時間(h)", "month": "年月"},
+                )
+                fig_monthly.update_xaxes(
+                    type="category"
+                )  # 年月を文字列として等間隔に表示
+                st.plotly_chart(fig_monthly, use_container_width=True)
 
     # タイムライン
     st.subheader("稼働タイムライン")
