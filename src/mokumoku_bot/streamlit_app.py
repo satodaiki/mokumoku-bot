@@ -4,9 +4,11 @@ from typing import List
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import pytz
 import streamlit as st
 from dotenv import load_dotenv
+from plotly.subplots import make_subplots
 
 from mokumoku_bot.db.conn import get_db_session
 from mokumoku_bot.discord_bot import END_CMD, START_CMD
@@ -131,20 +133,57 @@ if not df.empty:
                 st.plotly_chart(fig_daily, use_container_width=True)
             else:
                 user_monthly = (
-                    user_df.groupby("month")["duration_hours"].sum().reset_index()
+                    user_df.groupby("month")["duration_hours"]
+                    .agg(["sum", "mean", "count"])
+                    .reset_index()
                 )
-                fig_monthly = px.bar(
-                    user_monthly,
-                    x="month",
-                    y="duration_hours",
-                    text_auto=True,  # 棒グラフの上に数値を表示
-                    title=f"{user_name} さんの月別稼働時間",
-                    labels={"duration_hours": "時間(h)", "month": "年月"},
-                )
-                fig_monthly.update_xaxes(
-                    type="category"
-                )  # 年月を文字列として等間隔に表示
-                st.plotly_chart(fig_monthly, use_container_width=True)
+                user_monthly.columns = ["month", "total_h", "avg_h", "count"]
+
+                m_tab1, m_tab2, m_tab3 = st.tabs(["合計時間", "平均時間", "回数"])
+
+                with m_tab1:
+                    fig_monthly_sum = px.bar(
+                        user_monthly,
+                        x="month",
+                        y="total_h",
+                        text_auto=True,  # 棒グラフの上に数値を表示
+                        title=f"{user_name} さんの月別合計稼働時間",
+                        labels={"total_h": "合計時間(h)", "month": "年月"},
+                    )
+                    fig_monthly_sum.update_xaxes(
+                        type="category"
+                    )  # 年月を文字列として等間隔に表示
+                    st.plotly_chart(fig_monthly_sum, use_container_width=True)
+
+                with m_tab2:
+                    fig_monthly_avg = px.line(
+                        user_monthly,
+                        x="month",
+                        y="avg_h",
+                        markers=True,
+                        text=[f"{v:.2f}h" for v in user_monthly["avg_h"]],
+                        title=f"{user_name} さんの月別平均稼働時間",
+                        labels={"avg_h": "平均時間(h)", "month": "年月"},
+                    )
+                    fig_monthly_avg.update_traces(textposition="top center")
+                    fig_monthly_avg.update_xaxes(
+                        type="category"
+                    )  # 年月を文字列として等間隔に表示
+                    st.plotly_chart(fig_monthly_avg, use_container_width=True)
+
+                with m_tab3:
+                    fig_monthly_cnt = px.bar(
+                        user_monthly,
+                        x="month",
+                        y="count",
+                        text_auto=True,  # 棒グラフの上に数値を表示
+                        title=f"{user_name} さんの月別稼働回数",
+                        labels={"count": "回数", "month": "年月"},
+                    )
+                    fig_monthly_cnt.update_xaxes(
+                        type="category"
+                    )  # 年月を文字列として等間隔に表示
+                    st.plotly_chart(fig_monthly_cnt, use_container_width=True)
 
     # タイムライン
     st.subheader("稼働タイムライン")
