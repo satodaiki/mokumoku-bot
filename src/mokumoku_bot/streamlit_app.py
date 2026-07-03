@@ -4,11 +4,9 @@ from typing import List
 
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import pytz
 import streamlit as st
 from dotenv import load_dotenv
-from plotly.subplots import make_subplots
 
 from mokumoku_bot.db.conn import get_db_session
 from mokumoku_bot.discord_bot import END_CMD, START_CMD

@@ -1,6 +1,7 @@
 import datetime as dt
 import os
 from typing import Dict
+from zoneinfo import ZoneInfo
 
 import discord
 from dotenv import load_dotenv
@@ -8,6 +9,7 @@ from sqlalchemy import desc, select
 
 from mokumoku_bot.db.conn import get_db_session
 from mokumoku_bot.model.history import History
+from mokumoku_bot.time_parser import parse_start_time
 
 load_dotenv()
 
@@ -55,7 +57,12 @@ async def on_ready():
 
 
 @tree.command(name=START_CMD, description="もくもく学習を開始します")
-async def start_command(interaction: discord.Interaction):
+@discord.app_commands.describe(
+    time="開始時間を指定（例: 30m（30分前）、1h（1時間前）、19:00（今日の19時）、2026-07-03 19:00）"
+)
+async def start_command(
+    interaction: discord.Interaction, time: str | None = None
+):
     user_id = str(interaction.user.id)
     user_name = str(interaction.user.name)
 
@@ -66,8 +73,16 @@ async def start_command(interaction: discord.Interaction):
         await interaction.response.send_message("既に /start を実行済みだよ")
         return
 
+    start_at = interaction.created_at
+    if time is not None:
+        try:
+            start_at = parse_start_time(time, interaction.created_at)
+        except ValueError as e:
+            await interaction.response.send_message(f"時間の指定が正しくないよ: {e}")
+            return
+
     # 開始時刻を保存
-    start_times[user_id] = interaction.created_at
+    start_times[user_id] = start_at
 
     # DBにレコードを追加
     with get_db_session() as sess:
@@ -76,12 +91,19 @@ async def start_command(interaction: discord.Interaction):
                 user_id=user_id,
                 user_name=user_name,
                 cmd=START_CMD,
-                created_at=interaction.created_at,
+                created_at=start_at,
             )
         )
         sess.commit()
 
-    await interaction.response.send_message(f"{user_name} もくもく開始")
+    if time is not None:
+        local_start = start_at.astimezone(ZoneInfo("Asia/Tokyo"))
+        formatted_time = local_start.strftime("%Y-%m-%d %H:%M")
+        await interaction.response.send_message(
+            f"{user_name} もくもく開始（指定開始時刻: {formatted_time}）"
+        )
+    else:
+        await interaction.response.send_message(f"{user_name} もくもく開始")
 
 
 @tree.command(name=END_CMD, description="もくもく学習を終了します")
